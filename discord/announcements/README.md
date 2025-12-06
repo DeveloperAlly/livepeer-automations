@@ -33,7 +33,7 @@ The entire flow is external to Mintlify, requiring only a simple iframe embed th
 Updates happen automatically through n8n without any manual intervention.
 
 ## Implement this in your own projects
-See the [Implementation Guide]("./implementation-guide.md")
+See the [Implementation Guide]("https://github.com/DeveloperAlly/livepeer-automations/blob/main/discord/announcements/implementation-guide.md")
 
 ## Architecture Flow
 ```mermaid
