@@ -34,24 +34,27 @@ Updates happen automatically through n8n without any manual intervention.
 
 ## Architecture Flow
 ```mermaid
-graph LR
-    A[Discord<br/>Announcements<br/>Channel] -->|Webhook/API| B[n8n Workflow<br/>Every 30 min]
+graph TD
+    A[Discord<br/>Announcements Channel] 
+    A -->|Webhook/API| B[n8n Workflow<br/>Every 30 min]
     
-    B --> C{Process<br/>Messages}
-    C --> D[Extract & Format<br/>- Content<br/>- Author<br/>- Timestamp]
+    B --> C[Process Messages]
+    C --> D[Extract & Format<br/>• Content<br/>• Author<br/>• Timestamp]
     D --> E[Create JSON<br/>Structure]
     
     E --> F[GitHub API<br/>Update Files]
-    F --> G[GitHub Repo<br/>- index.html<br/>- announcements.json]
+    F --> G[(GitHub Repo<br/>index.html<br/>announcements.json)]
     
     G -->|Auto Deploy| H[GitHub Pages<br/>Static Site]
     
-    H -->|iframe embed| I[Mintlify Docs<br/>Display]
+    H -->|iframe| I[Mintlify Docs]
     
-    I -.->|User Views| J[Live<br/>Announcements]
+    I --> J[Users View<br/>Live Announcements]
     
     style A fill:#5865F2,color:#fff
     style B fill:#ff6d5a,color:#fff
-    style H fill:#24292e,color:#fff
+    style G fill:#24292e,color:#fff
+    style H fill:#0969da,color:#fff
     style I fill:#10b981,color:#fff
+    style J fill:#8b5cf6,color:#fff
 ```
