@@ -1,0 +1,12 @@
+{
+    "lastUpdated": "2025-12-06T03:23:00Z",
+    "announcements": [
+        {
+            "id": "1234567890",
+            "content": "Welcome to Livepeer announcements! This system automatically fetches and displays the latest announcements from our Discord server.",
+            "author": "Livepeer Team",
+            "timestamp": "2025-12-06T03:23:00Z",
+            "channelId": "announcement-channel-id"
+        }
+    ]
+}
