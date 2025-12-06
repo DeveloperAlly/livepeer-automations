@@ -4,7 +4,7 @@ Discord → GitHub Pages → Mintlify integration
 
 1. Fetches Announcements from Discord
 
-n8n workflow runs everyday (or triggered by webhook)
+n8n workflow runs every X minutes (or triggered by webhook)
 Retrieves last 10 messages from announcements channel
 
 
@@ -36,7 +36,7 @@ Updates happen automatically through n8n without any manual intervention.
 ```mermaid
 graph TD
     A[Discord<br/>Announcements Channel] 
-    A -->|Webhook/API| B[n8n Workflow<br/>Every 30 min]
+    A -->|Webhook/API| B[n8n Workflow<br/>Every X min]
     
     B --> C[Process Messages]
     C --> D[Extract & Format<br/>• Content<br/>• Author<br/>• Timestamp]
