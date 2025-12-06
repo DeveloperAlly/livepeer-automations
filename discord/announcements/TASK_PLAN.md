@@ -3,11 +3,11 @@
 ## Overview
 This task plan outlines the steps to implement a Discord announcements system that integrates Discord → n8n → GitHub Pages → Mintlify for the livepeer-automations repository.
 
-## Status: 📋 Planning Phase
+## Status: Planning Phase
 
 ---
 
-## Phase 1: Repository Setup ✅
+## Phase 1: Repository Setup
 **Goal:** Set up the basic repository structure and GitHub Pages
 
 ### Tasks:
@@ -26,7 +26,7 @@ This task plan outlines the steps to implement a Discord announcements system th
 
 ---
 
-## Phase 2: Create Frontend Files 📄
+## Phase 2: Create Frontend Files
 **Goal:** Build the announcement display interface
 
 ### Task 2.1: Create index.html
@@ -69,7 +69,7 @@ This task plan outlines the steps to implement a Discord announcements system th
 
 ---
 
-## Phase 3: n8n Workflow Configuration 🔄
+## Phase 3: n8n Workflow Configuration
 **Goal:** Set up automation to fetch Discord messages and update GitHub
 
 ### Task 3.1: GitHub Personal Access Token
@@ -116,7 +116,7 @@ This task plan outlines the steps to implement a Discord announcements system th
 
 ---
 
-## Phase 4: Mintlify Integration 🎨
+## Phase 4: Mintlify Integration
 **Goal:** Embed announcements in Mintlify documentation
 
 ### Task 4.1: Create Integration Documentation
@@ -141,7 +141,7 @@ https://developerally.github.io/livepeer-automations/discord/announcements/
 
 ---
 
-## Phase 5: Testing & Validation ✓
+## Phase 5: Testing & Validation
 **Goal:** Ensure all components work correctly
 
 ### Task 5.1: GitHub Pages Testing
@@ -167,7 +167,7 @@ https://developerally.github.io/livepeer-automations/discord/announcements/
 
 ---
 
-## Phase 6: Documentation 📚
+## Phase 6: Documentation
 **Goal:** Provide comprehensive guides for users
 
 ### Task 6.1: Troubleshooting Guide
@@ -203,7 +203,7 @@ https://developerally.github.io/livepeer-automations/discord/announcements/
 
 ---
 
-## Phase 7: Enhancements (Optional) 🚀
+## Phase 7: Enhancements (Optional)
 **Goal:** Add advanced features
 
 ### Potential Enhancements:
@@ -218,15 +218,15 @@ https://developerally.github.io/livepeer-automations/discord/announcements/
 
 ---
 
-## Success Criteria ✨
+## Success Criteria
 
 ### Must Have:
-✓ index.html displaying announcements
-✓ announcements.json with valid data structure
-✓ GitHub Pages serving files correctly
-✓ n8n workflow fetching and updating data
-✓ Mintlify iframe integration working
-✓ Documentation for setup and maintenance
+- [ ] index.html displaying announcements
+- [ ] announcements.json with valid data structure
+- [ ] GitHub Pages serving files correctly
+- [ ] n8n workflow fetching and updating data
+- [ ] Mintlify iframe integration working
+- [ ] Documentation for setup and maintenance
 
 ### Nice to Have:
 - Real-time Discord webhook integration
@@ -288,11 +288,11 @@ https://developerally.github.io/livepeer-automations/discord/announcements/
 
 ## Next Steps
 
-1. ✅ Create this task plan document
-2. ⏭️ Begin Phase 1: Create index.html and announcements.json
-3. ⏭️ Verify GitHub Pages configuration
-4. ⏭️ Document n8n workflow setup
-5. ⏭️ Test end-to-end integration
+1. [x] Create this task plan document
+2. [ ] Begin Phase 2: Create index.html and announcements.json
+3. [ ] Verify GitHub Pages configuration (Phase 1)
+4. [ ] Document n8n workflow setup (Phase 3)
+5. [ ] Test end-to-end integration (Phase 5)
 
 ---
 
