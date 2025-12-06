@@ -32,6 +32,9 @@ Auto-refreshes every 5 minutes to show latest updates
 The entire flow is external to Mintlify, requiring only a simple iframe embed that points to the GitHub Pages URL. 
 Updates happen automatically through n8n without any manual intervention.
 
+## Implement this in your own projects
+See the [Implementation Guide]("./implementation-guide.md")
+
 ## Architecture Flow
 ```mermaid
 graph TD
