@@ -31,3 +31,27 @@ Auto-refreshes every 5 minutes to show latest updates
 
 The entire flow is external to Mintlify, requiring only a simple iframe embed that points to the GitHub Pages URL. 
 Updates happen automatically through n8n without any manual intervention.
+
+## Architecture Flow
+```mermaid
+graph LR
+    A[Discord<br/>Announcements<br/>Channel] -->|Webhook/API| B[n8n Workflow<br/>Every 30 min]
+    
+    B --> C{Process<br/>Messages}
+    C --> D[Extract & Format<br/>- Content<br/>- Author<br/>- Timestamp]
+    D --> E[Create JSON<br/>Structure]
+    
+    E --> F[GitHub API<br/>Update Files]
+    F --> G[GitHub Repo<br/>- index.html<br/>- announcements.json]
+    
+    G -->|Auto Deploy| H[GitHub Pages<br/>Static Site]
+    
+    H -->|iframe embed| I[Mintlify Docs<br/>Display]
+    
+    I -.->|User Views| J[Live<br/>Announcements]
+    
+    style A fill:#5865F2,color:#fff
+    style B fill:#ff6d5a,color:#fff
+    style H fill:#24292e,color:#fff
+    style I fill:#10b981,color:#fff
+```
