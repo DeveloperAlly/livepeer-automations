@@ -1,0 +1,100 @@
+{
+  "name": "Discourse Latest → MDX (Full Posts)",
+  "nodes": [
+    {
+      "id": 1,
+      "name": "Daily Cron",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [200, 300],
+      "parameters": {
+        "triggerTimes": [
+          { "hour": 9, "minute": 0 }
+        ]
+      }
+    },
+    {
+      "id": 2,
+      "name": "Fetch Latest Topics",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [500, 300],
+      "parameters": {
+        "method": "GET",
+        "url": "https://forum.livepeer.org/latest.json",
+        "responseFormat": "json"
+      }
+    },
+    {
+      "id": 3,
+      "name": "Prepare Topics",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [800, 300],
+      "parameters": {
+        "functionCode": "const topics = items[0].json.topic_list.topics || [];\n\nreturn topics.map(t => ({\n  json: {\n    id: t.id,\n    title: t.title,\n    topicUrl: `https://forum.livepeer.org/t/${t.id}`,\n    topicApiUrl: `https://forum.livepeer.org/t/${t.id}.json`\n  }\n}));"
+      }
+    },
+    {
+      "id": 4,
+      "name": "Fetch Topic Details",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [1100, 300],
+      "parameters": {
+        "method": "GET",
+        "url": "={{$json[\"topicApiUrl\"]}}",
+        "responseFormat": "json"
+      }
+    },
+    {
+      "id": 5,
+      "name": "Extract First 4 Posts",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1400, 300],
+      "parameters": {
+        "functionCode": "const out = items.map(item => {\n  const topic = item.json;\n  const posts = (topic.post_stream?.posts || []).slice(0, 4).map(p => p.raw || \"\");\n  return {\n    json: {\n      title: topic.title,\n      url: `https://forum.livepeer.org/t/${topic.id}`,\n      posts\n    }\n  };\n});\n\nreturn out;"
+      }
+    },
+    {
+      "id": 6,
+      "name": "Build MDX",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1700, 300],
+      "parameters": {
+        "functionCode": "let mdx = `## Latest Forum Topics\\\\n\\\\n`;\n\nfor (const item of items) {\n  const { title, url, posts } = item.json;\n  mdx += `### [${title}](${url})\\\\n\\\\n`;\n  for (const body of posts) {\n    if (!body) continue;\n    mdx += body + \"\\\\n\\\\n---\\\\n\\\\n\";\n  }\n}\n\nreturn [{ json: { fileContent: mdx } }];"
+      }
+    },
+    {
+      "id": 7,
+      "name": "GitHub Create/Update File",
+      "type": "n8n-nodes-base.github",
+      "typeVersion": 2,
+      "position": [2000, 300],
+      "credentials": {
+        "githubApi": {
+          "name": "GitHub Repo Token"
+        }
+      },
+      "parameters": {
+        "resource": "file",
+        "operation": "createOrUpdate",
+        "owner": "developerally",
+        "repository": "livepeer-docs",
+        "filePath": "docs/forum/latest.mdx",
+        "fileContent": "={{$json[\"fileContent\"]}}",
+        "commitMessage": "Auto-update latest forum topics (full posts)"
+      }
+    }
+  ],
+  "connections": {
+    "Daily Cron": { "main": [[{ "node": "Fetch Latest Topics", "type": "main", "index": 0 }]] },
+    "Fetch Latest Topics": { "main": [[{ "node": "Prepare Topics", "type": "main", "index": 0 }]] },
+    "Prepare Topics": { "main": [[{ "node": "Fetch Topic Details", "type": "main", "index": 0 }]] },
+    "Fetch Topic Details": { "main": [[{ "node": "Extract First 4 Posts", "type": "main", "index": 0 }]] },
+    "Extract First 4 Posts": { "main": [[{ "node": "Build MDX", "type": "main", "index": 0 }]] },
+    "Build MDX": { "main": [[{ "node": "GitHub Create/Update File", "type": "main", "index": 0 }]] }
+  }
+}
