@@ -1,5 +1,5 @@
 {
-  "name": "Livepeer Forum Latest → Top 4 → MDX",
+  "name": "Livepeer Forum Latest → Top 4 → MDX (With Author)",
   "nodes": [
     {
       "id": "1",
@@ -44,7 +44,7 @@
       "type": "n8n-nodes-base.function",
       "position": [950, 300],
       "parameters": {
-        "functionCode": "function isOldPinned(t) {\n  const pinned = t.json.pinned === true || t.json.pinned_globally === true;\n  if (!pinned) return false;\n\n  const created = new Date(t.json.created_at);\n  const now = new Date();\n  const ageDays = (now - created) / (1000 * 60 * 60 * 24);\n\n  return ageDays > 30;\n}\n\n// remove OLD pinned topics ONLY\ntopics = items.filter(t => !isOldPinned(t));\n\n// take first 4 real topics\nconst top4 = topics.slice(0, 4);\n\nreturn top4;"
+        "functionCode": "function isOldPinned(t) {\n  const pinned = t.json.pinned === true || t.json.pinned_globally === true;\n  if (!pinned) return false;\n  const created = new Date(t.json.created_at);\n  const now = new Date();\n  const ageDays = (now - created) / (1000 * 60 * 60 * 24);\n  return ageDays > 30;\n}\n\nlet topics = items.filter(t => !isOldPinned(t));\nconst top4 = topics.slice(0, 4);\nreturn top4;"
       },
       "typeVersion": 1
     },
@@ -62,11 +62,11 @@
     },
     {
       "id": "6",
-      "name": "Extract Original Post Only",
+      "name": "Extract Original Post w/ Author",
       "type": "n8n-nodes-base.function",
       "position": [1450, 300],
       "parameters": {
-        "functionCode": "return items.map(item => {\n  const topic = item.json;\n  const first = topic.post_stream?.posts?.find(p => p.post_number === 1);\n  return {\n    json: {\n      id: topic.id,\n      title: topic.title,\n      url: `https://forum.livepeer.org/t/${topic.id}`,\n      body: first?.cooked || \"\"\n    }\n  };\n});"
+        "functionCode": "return items.map(item => {\n  const topic = item.json;\n  const first = topic.post_stream?.posts?.find(p => p.post_number === 1);\n  return {\n    json: {\n      id: topic.id,\n      title: topic.title,\n      url: `https://forum.livepeer.org/t/${topic.id}`,\n      authorName: first?.name || first?.username || \"Unknown\",\n      authorUsername: first?.username || \"unknown\",\n      body: first?.cooked || \"\"\n    }\n  };\n});"
       },
       "typeVersion": 1
     },
@@ -86,7 +86,7 @@
       "type": "n8n-nodes-base.function",
       "position": [1950, 300],
       "parameters": {
-        "functionCode": "const topics = items[0].json.topics;\nlet mdx = `## Latest Forum Topics\\\\n\\\\n`;\n\nfor (const t of topics) {\n  mdx += `### [${t.title}](${t.url})\\\\n\\\\n`;\n  mdx += t.body + \"\\\\n\\\\n---\\\\n\\\\n\";\n}\n\nreturn [{ json: { fileContent: mdx } }];"
+        "functionCode": "const topics = items[0].json.topics;\nlet mdx = `## Latest Forum Topics\\\\n\\\\n`;\n\nfor (const t of topics) {\n  mdx += `### [${t.title}](${t.url})\\\\n\\\\n`;\n  mdx += `_By ${t.authorName} (@${t.authorUsername})_\\\\n\\\\n`;\n  mdx += t.body + \"\\\\n\\\\n---\\\\n\\\\n\";\n}\n\nreturn [{ json: { fileContent: mdx } }];"
       },
       "typeVersion": 1
     },
@@ -102,7 +102,7 @@
         "repository": "livepeer-docs",
         "filePath": "docs/forum/latest.mdx",
         "fileContent": "={{$json.fileContent}}",
-        "commitMessage": "Update forum latest topics (top 4, original post only, old pinned excluded)"
+        "commitMessage": "Update forum latest topics with authors (top 4, original post only)"
       },
       "credentials": {
         "githubApi": {
@@ -161,14 +161,14 @@
       "main": [
         [
           {
-            "node": "Extract Original Post Only",
+            "node": "Extract Original Post w/ Author",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Extract Original Post Only": {
+    "Extract Original Post w/ Author": {
       "main": [
         [
           {
