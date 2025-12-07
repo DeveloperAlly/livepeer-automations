@@ -1,0 +1,219 @@
+{
+  "name": "Livepeer Forum Latest → Top 4 → MDX (With Author)",
+  "nodes": [
+    {
+      "id": "1",
+      "name": "Cron",
+      "type": "n8n-nodes-base.cron",
+      "position": [200, 300],
+      "parameters": {
+        "triggerTimes": [
+          {
+            "hour": 9,
+            "minute": 0
+          }
+        ]
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "2",
+      "name": "Fetch Latest Topics",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [450, 300],
+      "parameters": {
+        "url": "https://forum.livepeer.org/latest.json",
+        "method": "GET",
+        "responseFormat": "json"
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "3",
+      "name": "Extract All Topics",
+      "type": "n8n-nodes-base.function",
+      "position": [700, 300],
+      "parameters": {
+        "functionCode": "const list = items[0].json.topic_list?.topics || [];
+return list.map(t => ({ json: t }));"
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "4",
+      "name": "Filter Top 4 (Exclude Old Pinned)",
+      "type": "n8n-nodes-base.function",
+      "position": [950, 300],
+      "parameters": {
+        "functionCode": "function isOldPinned(t) {
+  const pinned = t.json.pinned === true || t.json.pinned_globally === true;
+  if (!pinned) return false;
+  const created = new Date(t.json.cre[...]"
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "5",
+      "name": "Fetch Topic JSON",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [1200, 300],
+      "parameters": {
+        "url": "={{`https://forum.livepeer.org/t/${$json.id}.json`}}",
+        "method": "GET",
+        "responseFormat": "json"
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "6",
+      "name": "Extract Original Post w/ Author",
+      "type": "n8n-nodes-base.function",
+      "position": [1450, 300],
+      "parameters": {
+        "functionCode": "return items.map(item => {
+  const topic = item.json;
+  const first = topic.post_stream?.posts?.find(p => p.post_number === 1);
+  return {
+    json: {
+      id: topic.id,[...]"
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "7",
+      "name": "Aggregate Topics",
+      "type": "n8n-nodes-base.function",
+      "position": [1700, 300],
+      "parameters": {
+        "functionCode": "return [{ json: { topics: items.map(i => i.json) } }];"
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "8",
+      "name": "Build MDX",
+      "type": "n8n-nodes-base.function",
+      "position": [1950, 300],
+      "parameters": {
+        "functionCode": "const topics = items[0].json.topics;
+let mdx = `## Latest Forum Topics\n\n`;
+
+for (const t of topics) {
+  mdx += `### [${t.title}](${t.url})\n\n`;
+  mdx += `_[...]"
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "9",
+      "name": "Commit MDX to GitHub",
+      "type": "n8n-nodes-base.github",
+      "position": [2200, 300],
+      "parameters": {
+        "resource": "file",
+        "operation": "createOrUpdate",
+        "owner": "developerally",
+        "repository": "livepeer-docs",
+        "filePath": "docs/forum/latest.mdx",
+        "fileContent": "={{$json.fileContent}}",
+        "commitMessage": "Update forum latest topics with authors (top 4, original post only)"
+      },
+      "credentials": {
+        "githubApi": {
+          "id": "github-api"
+        }
+      },
+      "typeVersion": 2
+    }
+  ],
+  "connections": {
+    "Cron": {
+      "main": [
+        [
+          {
+            "node": "Fetch Latest Topics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Latest Topics": {
+      "main": [
+        [
+          {
+            "node": "Extract All Topics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract All Topics": {
+      "main": [
+        [
+          {
+            "node": "Filter Top 4 (Exclude Old Pinned)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Top 4 (Exclude Old Pinned)": {
+      "main": [
+        [
+          {
+            "node": "Fetch Topic JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Topic JSON": {
+      "main": [
+        [
+          {
+            "node": "Extract Original Post w/ Author",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Original Post w/ Author": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Topics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Topics": {
+      "main": [
+        [
+          {
+            "node": "Build MDX",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build MDX": {
+      "main": [
+        [
+          {
+            "node": "Commit MDX to GitHub",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
