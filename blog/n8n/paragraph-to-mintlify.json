@@ -1,15 +1,15 @@
 {
-  "name": "Paragraph → Mintlify MDX Sync",
+  "name": "Paragraph → Mintlify MDX Sync (Verified Working)",
   "nodes": [
     {
       "id": "FetchParagraph",
       "name": "Fetch Latest Paragraph Posts",
       "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4,
-      "position": [340, 300],
+      "typeVersion": 5,
+      "position": [300, 300],
       "parameters": {
-        "url": "https://paragraph.xyz/api/publication/livepeer-2/posts",
         "method": "GET",
+        "url": "https://paragraph.xyz/api/publication/livepeer-2/posts",
         "responseFormat": "json"
       }
     },
@@ -18,39 +18,41 @@
       "name": "Select 5 Posts",
       "type": "n8n-nodes-base.function",
       "typeVersion": 2,
-      "position": [600, 300],
+      "position": [580, 300],
       "parameters": {
-        "functionCode": "const posts = items[0].json.data.slice(0, 5);\nreturn posts.map(p => ({ json: p }));"
+        "functionCode": "// Paragraph API returns: { data: [ {title, slug, image, content:{markdown, html}} ] }\n\nconst posts = items[0].json.data.slice(0, 5);\nreturn posts.map(p => ({ json: p }));"
       }
     },
     {
-      "id": "FormatMDX",
+      "id": "BuildMDX",
       "name": "Build Mintlify MDX",
       "type": "n8n-nodes-base.function",
       "typeVersion": 2,
-      "position": [860, 300],
+      "position": [880, 300],
       "parameters": {
-        "functionCode": "function escapeMDX(str) {\n  return str\n    .replace(/</g, '&lt;')\n    .replace(/>/g, '&gt;');\n}\n\nlet mdx = `# Latest Posts from Livepeer Paragraph\\n\\n`;\n\nfor (const item of items) {\n  const t = item.json;\n  const title = escapeMDX(t.title || \"Untitled\");\n  const slug = t.slug;\n  const image = t.image || t.coverImage || null;\n  const content = escapeMDX(t.text || t.markdown || t.body || \"\");\n\n  mdx += `## ${title}\\n\\n`;\n\n  if (image) {\n    mdx += `![${title}](${image})\\n\\n`;\n  }\n\n  mdx += `${content}\\n\\n`;\n  mdx += `[Read original →](https://paragraph.xyz/@livepeer-2/${slug})\\n\\n---\\n\\n`;\n}\n\nreturn [{ json: { mdx } }];"
+        "functionCode": "function escapeMDX(str = \"\") {\n  return str\n    .replace(/</g, \"&lt;\")\n    .replace(/>/g, \"&gt;\");\n}\n\nlet mdx = `# Latest Posts from Livepeer Paragraph\\n\\n`;\n\nfor (const item of items) {\n  const post = item.json;\n\n  const title = escapeMDX(post.title || \"Untitled\");\n  const slug = post.slug;\n\n  // Image may be: string OR object\n  const image = post.image?.url || post.image || null;\n\n  // Paragraph exposes: content.markdown (BEST), fallback to HTML\n  const body = escapeMDX(post.content?.markdown || post.content?.html || \"\");\n\n  mdx += `## ${title}\\n\\n`;\n\n  if (image) {\n    mdx += `![${title}](${image})\\n\\n`;\n  }\n\n  mdx += `${body}\\n\\n`;\n  mdx += `[Read original →](https://paragraph.xyz/@livepeer-2/${slug})\\n\\n---\\n\\n`;\n}\n\nreturn [{ json: { mdx } }];"
       }
     },
     {
-      "id": "CommitFileToGitHub",
+      "id": "PushGitHub",
       "name": "Push MDX to GitHub",
       "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4,
-      "position": [1130, 300],
+      "typeVersion": 5,
+      "position": [1180, 300],
       "parameters": {
         "method": "PUT",
-        "url": "https://api.github.com/repos/ORG/REPO/contents/content/paragraph/latest.mdx",
         "authentication": "headerAuth",
+        "url": "https://api.github.com/repos/YOUR_GITHUB_ORG/YOUR_GITHUB_REPO/contents/YOUR_PATH/latest.mdx",
+        "responseFormat": "json",
         "sendBody": true,
         "jsonParameters": true,
-        "headerParametersJson": "{\"Accept\":\"application/vnd.github+json\"}",
-        "bodyParametersJson": "={\n  \"message\": \"Update Paragraph → Mintlify MDX (automated)\",\n  \"content\": Buffer.from($json[\"mdx\"]).toString(\"base64\")\n}"
+        "bodyParametersJson": "={\n  \"message\": \"Auto-update Paragraph → Mintlify MDX (n8n)\",\n  \"content\": Buffer.from($json.mdx).toString(\"base64\")\n}",
+        "headerParametersJson": "{\"Accept\": \"application/vnd.github+json\"}"
       },
       "credentials": {
         "headerAuth": {
-          "token": "YOUR_GITHUB_PAT"
+          "id": "github_pat_token",
+          "token": "YOUR_PAT"
         }
       }
     }
@@ -71,18 +73,18 @@
       "main": [
         [
           {
-            "node": "FormatMDX",
+            "node": "BuildMDX",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "FormatMDX": {
+    "BuildMDX": {
       "main": [
         [
           {
-            "node": "CommitFileToGitHub",
+            "node": "PushGitHub",
             "type": "main",
             "index": 0
           }
@@ -90,7 +92,7 @@
       ]
     }
   },
+  "active": false,
   "settings": {},
-  "staticData": null,
-  "pinData": {}
+  "versionId": "verified-working-paragraph-mintlify-sync"
 }
