@@ -1,5 +1,5 @@
 {
-  "name": "Discourse Latest → Original Post Only → MDX",
+  "name": "Discourse Latest → Top 4 → Original Post Only → MDX",
   "nodes": [
     {
       "id": 1,
@@ -27,12 +27,12 @@
     },
     {
       "id": 3,
-      "name": "Extract Topic IDs",
+      "name": "Extract Top 4 Topic IDs",
       "type": "n8n-nodes-base.function",
       "typeVersion": 1,
       "position": [800, 300],
       "parameters": {
-        "functionCode": "const topics = items[0].json.topic_list?.topics || [];\nreturn topics.map(t => ({ json: { id: t.id, title: t.title } }));"
+        "functionCode": "const topics = items[0].json.topic_list?.topics || [];\nconst top4 = topics.slice(0, 4);\nreturn top4.map(t => ({ json: { id: t.id, title: t.title } }));"
       }
     },
     {
@@ -43,7 +43,7 @@
       "position": [1100, 300],
       "parameters": {
         "method": "GET",
-        "url": "=https://forum.livepeer.org/t/{{$json[\"id\"]}}.json",
+        "url": "=https://forum.livepeer.org/t/{{$json.id}}.json",
         "responseFormat": "json"
       }
     },
@@ -54,16 +54,18 @@
       "typeVersion": 1,
       "position": [1400, 300],
       "parameters": {
-        "functionCode": "const topic = items[0].json;\nconst first = (topic.post_stream?.posts || []).find(p => p.post_number === 1);\nreturn [{ json: { id: topic.id, title: topic.title, url: `https://forum.livepeer.org/t/${topic.id}`, body: first?.cooked || \"\" } }];"
+        "functionCode": "const topic = items[0].json;\nconst first = topic.post_stream?.posts?.find(p => p.post_number === 1);\nreturn [{ json: {\n  id: topic.id,\n  title: topic.title,\n  url: `https://forum.livepeer.org/t/${topic.id}`,\n  body: first?.cooked || \"\"\n}}];"
       }
     },
     {
       "id": 6,
-      "name": "Merge Topics",
-      "type": "n8n-nodes-base.merge",
+      "name": "Aggregate Topics",
+      "type": "n8n-nodes-base.function",
       "typeVersion": 1,
       "position": [1700, 300],
-      "parameters": { "mode": "multiplex" }
+      "parameters": {
+        "functionCode": "return [{ json: { topics: items.map(i => i.json) } }];"
+      }
     },
     {
       "id": 7,
@@ -72,7 +74,7 @@
       "typeVersion": 1,
       "position": [2000, 300],
       "parameters": {
-        "functionCode": "let mdx = `## Latest Forum Topics\\\\n\\\\n`;\nfor (const t of items) {\n  mdx += `### [${t.json.title}](${t.json.url})\\\\n\\\\n`;\n  mdx += (t.json.body || \"\") + \"\\\\n\\\\n---\\\\n\\\\n\";\n}\nreturn [{ json: { fileContent: mdx } }];"
+        "functionCode": "const topics = items[0].json.topics;\nlet mdx = `## Latest Forum Topics\\\\n\\\\n`;\nfor (const t of topics) {\n  mdx += `### [${t.title}](${t.url})\\\\n\\\\n`;\n  mdx += t.body + \"\\\\n\\\\n---\\\\n\\\\n\";\n}\nreturn [{ json: { fileContent: mdx } }];"
       }
     },
     {
@@ -91,17 +93,17 @@
         "repository": "livepeer-docs",
         "filePath": "docs/forum/latest.mdx",
         "fileContent": "={{$json.fileContent}}",
-        "commitMessage": "Update latest forum topics (original post only)"
+        "commitMessage": "Update latest topics (top 4, original post only)"
       }
     }
   ],
   "connections": {
     "Cron Latest": { "main": [[{ "node": "Fetch Latest Topics", "type": "main", "index": 0 }]] },
-    "Fetch Latest Topics": { "main": [[{ "node": "Extract Topic IDs", "type": "main", "index": 0 }]] },
-    "Extract Topic IDs": { "main": [[{ "node": "Fetch Topic JSON", "type": "main", "index": 0 }]] },
+    "Fetch Latest Topics": { "main": [[{ "node": "Extract Top 4 Topic IDs", "type": "main", "index": 0 }]] },
+    "Extract Top 4 Topic IDs": { "main": [[{ "node": "Fetch Topic JSON", "type": "main", "index": 0 }]] },
     "Fetch Topic JSON": { "main": [[{ "node": "Extract Original Post Only", "type": "main", "index": 0 }]] },
-    "Extract Original Post Only": { "main": [[{ "node": "Merge Topics", "type": "main", "index": 0 }]] },
-    "Merge Topics": { "main": [[{ "node": "Build MDX Latest", "type": "main", "index": 0 }]] },
+    "Extract Original Post Only": { "main": [[{ "node": "Aggregate Topics", "type": "main", "index": 0 }]] },
+    "Aggregate Topics": { "main": [[{ "node": "Build MDX Latest", "type": "main", "index": 0 }]] },
     "Build MDX Latest": { "main": [[{ "node": "Commit Latest MDX", "type": "main", "index": 0 }]] }
   }
 }
