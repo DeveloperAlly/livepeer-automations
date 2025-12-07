@@ -1,91 +1,100 @@
 {
-  "name": "Discourse Latest → Top 4 → Original Post Only → MDX",
+  "name": "Livepeer Forum Latest → Top 4 → MDX",
   "nodes": [
     {
-      "id": 1,
-      "name": "Cron Latest",
+      "id": "1",
+      "name": "Cron",
       "type": "n8n-nodes-base.cron",
-      "typeVersion": 1,
       "position": [200, 300],
       "parameters": {
         "triggerTimes": [
-          { "hour": 9, "minute": 0 }
+          {
+            "hour": 9,
+            "minute": 0
+          }
         ]
-      }
+      },
+      "typeVersion": 1
     },
     {
-      "id": 2,
+      "id": "2",
       "name": "Fetch Latest Topics",
       "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 1,
-      "position": [500, 300],
+      "position": [450, 300],
       "parameters": {
-        "method": "GET",
         "url": "https://forum.livepeer.org/latest.json",
+        "method": "GET",
         "responseFormat": "json"
-      }
+      },
+      "typeVersion": 1
     },
     {
-      "id": 3,
-      "name": "Extract Top 4 Topic IDs",
+      "id": "3",
+      "name": "Extract All Topics",
       "type": "n8n-nodes-base.function",
-      "typeVersion": 1,
-      "position": [800, 300],
+      "position": [700, 300],
       "parameters": {
-        "functionCode": "const topics = items[0].json.topic_list?.topics || [];\nconst top4 = topics.slice(0, 4);\nreturn top4.map(t => ({ json: { id: t.id, title: t.title } }));"
-      }
+        "functionCode": "const list = items[0].json.topic_list?.topics || [];\nreturn list.map(t => ({ json: t }));"
+      },
+      "typeVersion": 1
     },
     {
-      "id": 4,
+      "id": "4",
+      "name": "Filter Top 4 (Exclude Old Pinned)",
+      "type": "n8n-nodes-base.function",
+      "position": [950, 300],
+      "parameters": {
+        "functionCode": "function isOldPinned(t) {\n  const pinned = t.json.pinned === true || t.json.pinned_globally === true;\n  if (!pinned) return false;\n\n  const created = new Date(t.json.created_at);\n  const now = new Date();\n  const ageDays = (now - created) / (1000 * 60 * 60 * 24);\n\n  return ageDays > 30;\n}\n\n// remove OLD pinned topics ONLY\ntopics = items.filter(t => !isOldPinned(t));\n\n// take first 4 real topics\nconst top4 = topics.slice(0, 4);\n\nreturn top4;"
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "5",
       "name": "Fetch Topic JSON",
       "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 1,
-      "position": [1100, 300],
+      "position": [1200, 300],
       "parameters": {
+        "url": "={{`https://forum.livepeer.org/t/${$json.id}.json`}}",
         "method": "GET",
-        "url": "=https://forum.livepeer.org/t/{{$json.id}}.json",
         "responseFormat": "json"
-      }
+      },
+      "typeVersion": 1
     },
     {
-      "id": 5,
+      "id": "6",
       "name": "Extract Original Post Only",
       "type": "n8n-nodes-base.function",
-      "typeVersion": 1,
-      "position": [1400, 300],
+      "position": [1450, 300],
       "parameters": {
-        "functionCode": "const topic = items[0].json;\nconst first = topic.post_stream?.posts?.find(p => p.post_number === 1);\nreturn [{ json: {\n  id: topic.id,\n  title: topic.title,\n  url: `https://forum.livepeer.org/t/${topic.id}`,\n  body: first?.cooked || \"\"\n}}];"
-      }
+        "functionCode": "return items.map(item => {\n  const topic = item.json;\n  const first = topic.post_stream?.posts?.find(p => p.post_number === 1);\n  return {\n    json: {\n      id: topic.id,\n      title: topic.title,\n      url: `https://forum.livepeer.org/t/${topic.id}`,\n      body: first?.cooked || \"\"\n    }\n  };\n});"
+      },
+      "typeVersion": 1
     },
     {
-      "id": 6,
+      "id": "7",
       "name": "Aggregate Topics",
       "type": "n8n-nodes-base.function",
-      "typeVersion": 1,
       "position": [1700, 300],
       "parameters": {
         "functionCode": "return [{ json: { topics: items.map(i => i.json) } }];"
-      }
-    },
-    {
-      "id": 7,
-      "name": "Build MDX Latest",
-      "type": "n8n-nodes-base.function",
-      "typeVersion": 1,
-      "position": [2000, 300],
-      "parameters": {
-        "functionCode": "const topics = items[0].json.topics;\nlet mdx = `## Latest Forum Topics\\\\n\\\\n`;\nfor (const t of topics) {\n  mdx += `### [${t.title}](${t.url})\\\\n\\\\n`;\n  mdx += t.body + \"\\\\n\\\\n---\\\\n\\\\n\";\n}\nreturn [{ json: { fileContent: mdx } }];"
-      }
-    },
-    {
-      "id": 8,
-      "name": "Commit Latest MDX",
-      "type": "n8n-nodes-base.github",
-      "typeVersion": 2,
-      "position": [2300, 300],
-      "credentials": {
-        "githubApi": { "name": "GitHub Repo Token" }
       },
+      "typeVersion": 1
+    },
+    {
+      "id": "8",
+      "name": "Build MDX",
+      "type": "n8n-nodes-base.function",
+      "position": [1950, 300],
+      "parameters": {
+        "functionCode": "const topics = items[0].json.topics;\nlet mdx = `## Latest Forum Topics\\\\n\\\\n`;\n\nfor (const t of topics) {\n  mdx += `### [${t.title}](${t.url})\\\\n\\\\n`;\n  mdx += t.body + \"\\\\n\\\\n---\\\\n\\\\n\";\n}\n\nreturn [{ json: { fileContent: mdx } }];"
+      },
+      "typeVersion": 1
+    },
+    {
+      "id": "9",
+      "name": "Commit MDX to GitHub",
+      "type": "n8n-nodes-base.github",
+      "position": [2200, 300],
       "parameters": {
         "resource": "file",
         "operation": "createOrUpdate",
@@ -93,17 +102,104 @@
         "repository": "livepeer-docs",
         "filePath": "docs/forum/latest.mdx",
         "fileContent": "={{$json.fileContent}}",
-        "commitMessage": "Update latest topics (top 4, original post only)"
-      }
+        "commitMessage": "Update forum latest topics (top 4, original post only, old pinned excluded)"
+      },
+      "credentials": {
+        "githubApi": {
+          "id": "github-api"
+        }
+      },
+      "typeVersion": 2
     }
   ],
   "connections": {
-    "Cron Latest": { "main": [[{ "node": "Fetch Latest Topics", "type": "main", "index": 0 }]] },
-    "Fetch Latest Topics": { "main": [[{ "node": "Extract Top 4 Topic IDs", "type": "main", "index": 0 }]] },
-    "Extract Top 4 Topic IDs": { "main": [[{ "node": "Fetch Topic JSON", "type": "main", "index": 0 }]] },
-    "Fetch Topic JSON": { "main": [[{ "node": "Extract Original Post Only", "type": "main", "index": 0 }]] },
-    "Extract Original Post Only": { "main": [[{ "node": "Aggregate Topics", "type": "main", "index": 0 }]] },
-    "Aggregate Topics": { "main": [[{ "node": "Build MDX Latest", "type": "main", "index": 0 }]] },
-    "Build MDX Latest": { "main": [[{ "node": "Commit Latest MDX", "type": "main", "index": 0 }]] }
+    "Cron": {
+      "main": [
+        [
+          {
+            "node": "Fetch Latest Topics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Latest Topics": {
+      "main": [
+        [
+          {
+            "node": "Extract All Topics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract All Topics": {
+      "main": [
+        [
+          {
+            "node": "Filter Top 4 (Exclude Old Pinned)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Top 4 (Exclude Old Pinned)": {
+      "main": [
+        [
+          {
+            "node": "Fetch Topic JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Topic JSON": {
+      "main": [
+        [
+          {
+            "node": "Extract Original Post Only",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Original Post Only": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Topics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Topics": {
+      "main": [
+        [
+          {
+            "node": "Build MDX",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build MDX": {
+      "main": [
+        [
+          {
+            "node": "Commit MDX to GitHub",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   }
 }
