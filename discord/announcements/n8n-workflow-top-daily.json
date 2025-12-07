@@ -1,5 +1,5 @@
 {
-  "name": "Discourse Top Daily → Full MDX (4 posts)",
+  "name": "Discourse Top Daily → Original Post Top 4 Only → MDX",
   "nodes": [
     {
       "id": 1,
@@ -32,7 +32,7 @@
       "typeVersion": 1,
       "position": [800, 300],
       "parameters": {
-        "functionCode": "const topics = items[0].json.topic_list?.topics || [];\nreturn topics.map(t => ({\n  json: {\n    id: t.id,\n    title: t.title\n  }\n}));"
+        "functionCode": "const topics = items[0].json.topic_list?.topics || [];\nreturn topics.map(t => ({ json: { id: t.id, title: t.title } }));"
       }
     },
     {
@@ -43,40 +43,46 @@
       "position": [1100, 300],
       "parameters": {
         "method": "GET",
-        "url": "=https://forum.livepeer.org/t/{{$json[\"id\"]}}.json",
+        "url": "=https://forum.livepeer.org/t/{{$json.id}}.json",
         "responseFormat": "json"
       }
     },
     {
       "id": 5,
-      "name": "Extract First 4 Posts",
+      "name": "Extract Original Post Only",
       "type": "n8n-nodes-base.function",
       "typeVersion": 1,
       "position": [1400, 300],
       "parameters": {
-        "functionCode": "const out = items.map(item => {\n  const topic = item.json;\n  const posts = (topic.post_stream?.posts || [])\n    .slice(0, 4)\n    .map(p => p.cooked || \"\");\n  return {\n    json: {\n      id: topic.id,\n      title: topic.title,\n      url: `https://forum.livepeer.org/t/${topic.id}`,\n      posts\n    }\n  };\n});\nreturn out;"
+        "functionCode": "const topic = items[0].json;\nconst first = (topic.post_stream?.posts || []).find(p => p.post_number === 1);\nreturn [{ json: { id: topic.id, title: topic.title, url: `https://forum.livepeer.org/t/${topic.id}`, body: first?.cooked || \"\" } }];"
       }
     },
     {
       "id": 6,
-      "name": "Build MDX Top Daily",
-      "type": "n8n-nodes-base.function",
+      "name": "Merge Topics",
+      "type": "n8n-nodes-base.merge",
       "typeVersion": 1,
       "position": [1700, 300],
-      "parameters": {
-        "functionCode": "let mdx = `## Top Daily Forum Topics\\\\n\\\\n`;\nfor (const item of items) {\n  const { title, url, posts } = item.json;\n  mdx += `### [${title}](${url})\\\\n\\\\n`;\n  for (const html of posts) {\n    if (!html) continue;\n    mdx += html + \"\\\\n\\\\n---\\\\n\\\\n\";\n  }\n}\nreturn [{ json: { fileContent: mdx } }];"
-      }
+      "parameters": { "mode": "multiplex" }
     },
     {
       "id": 7,
-      "name": "GitHub Top Daily MDX",
+      "name": "Build MDX Top Daily",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [2000, 300],
+      "parameters": {
+        "functionCode": "let mdx = `## Top Daily Forum Topics\\\\n\\\\n`;\nfor (const t of items) {\n  mdx += `### [${t.json.title}](${t.json.url})\\\\n\\\\n`;\n  mdx += (t.json.body || \"\") + \"\\\\n\\\\n---\\\\n\\\\n\";\n}\nreturn [{ json: { fileContent: mdx } }];"
+      }
+    },
+    {
+      "id": 8,
+      "name": "Commit Top Daily MDX",
       "type": "n8n-nodes-base.github",
       "typeVersion": 2,
-      "position": [2000, 300],
+      "position": [2300, 300],
       "credentials": {
-        "githubApi": {
-          "name": "GitHub Repo Token"
-        }
+        "githubApi": { "name": "GitHub Repo Token" }
       },
       "parameters": {
         "resource": "file",
@@ -84,29 +90,18 @@
         "owner": "developerally",
         "repository": "livepeer-docs",
         "filePath": "docs/forum/top-daily.mdx",
-        "fileContent": "={{$json[\"fileContent\"]}}",
-        "commitMessage": "Auto-update top daily forum topics (full posts, cooked HTML)"
+        "fileContent": "={{$json.fileContent}}",
+        "commitMessage": "Update top daily topics (original post only)"
       }
     }
   ],
   "connections": {
-    "Cron Top Daily": {
-      "main": [[{ "node": "Fetch Top Daily", "type": "main", "index": 0 }]]
-    },
-    "Fetch Top Daily": {
-      "main": [[{ "node": "Extract Topic IDs", "type": "main", "index": 0 }]]
-    },
-    "Extract Topic IDs": {
-      "main": [[{ "node": "Fetch Topic JSON", "type": "main", "index": 0 }]]
-    },
-    "Fetch Topic JSON": {
-      "main": [[{ "node": "Extract First 4 Posts", "type": "main", "index": 0 }]]
-    },
-    "Extract First 4 Posts": {
-      "main": [[{ "node": "Build MDX Top Daily", "type": "main", "index": 0 }]]
-    },
-    "Build MDX Top Daily": {
-      "main": [[{ "node": "GitHub Top Daily MDX", "type": "main", "index": 0 }]]
-    }
+    "Cron Top Daily": { "main": [[{ "node": "Fetch Top Daily", "type": "main", "index": 0 }]] },
+    "Fetch Top Daily": { "main": [[{ "node": "Extract Topic IDs", "type": "main", "index": 0 }]] },
+    "Extract Topic IDs": { "main": [[{ "node": "Fetch Topic JSON", "type": "main", "index": 0 }]] },
+    "Fetch Topic JSON": { "main": [[{ "node": "Extract Original Post Only", "type": "main", "index": 0 }]] },
+    "Extract Original Post Only": { "main": [[{ "node": "Merge Topics", "type": "main", "index": 0 }]] },
+    "Merge Topics": { "main": [[{ "node": "Build MDX Top Daily", "type": "main", "index": 0 }]] },
+    "Build MDX Top Daily": { "main": [[{ "node": "Commit Top Daily MDX", "type": "main", "index": 0 }]] }
   }
 }
