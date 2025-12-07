@@ -3,7 +3,7 @@
   "nodes": [
     {
       "parameters": {},
-      "id": "trigger-node",
+      "id": "manual-trigger",
       "name": "Manual Trigger",
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
@@ -12,7 +12,7 @@
     {
       "parameters": {
         "method": "GET",
-        "url": "https://paragraph.com/api/publications/iPSfmIGHQ4xSr3vesziM/posts",
+        "url": "https://public.api.paragraph.com/api/v1/publications/iPSfmIGHQ4xSr3vesziM/posts",
         "sendQuery": true,
         "queryParameters": {
           "parameters": [
@@ -31,12 +31,16 @@
             {
               "name": "orderDirection",
               "value": "desc"
+            },
+            {
+              "name": "includeContent",
+              "value": "true"
             }
           ]
         },
         "options": {}
       },
-      "id": "http-request-list",
+      "id": "list-posts",
       "name": "List Latest 4 Posts",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
@@ -44,118 +48,46 @@
     },
     {
       "parameters": {
-        "fieldToSplitOut": "data",
-        "options": {}
+        "jsCode": "// Extract the posts array from the response\nconst response = items[0].json;\nconst posts = response.data || response.posts || response;\n\n// Process each post to extract full content\nconst processedPosts = posts.map(post => {\n  return {\n    id: post.id,\n    title: post.title,\n    slug: post.slug,\n    url: `https://paragraph.com/@livepeer-2/${post.slug}`,\n    publishedAt: post.publishedAt,\n    updatedAt: post.updatedAt,\n    \n    // Content fields - check different possible field names\n    content: {\n      markdown: post.markdown || post.content?.markdown || post.body?.markdown || '',\n      html: post.html || post.content?.html || post.body?.html || '',\n      text: post.text || post.content?.text || post.body?.text || post.plainText || ''\n    },\n    \n    // Summary/excerpt\n    summary: post.summary || post.subtitle || post.excerpt || '',\n    \n    // Author information\n    author: post.author || post.authorName || 'Livepeer',\n    \n    // Media\n    coverImage: post.coverImageUrl || post.featuredImage || post.coverImage || '',\n    \n    // Metadata\n    tags: post.tags || [],\n    categories: post.categories || [],\n    \n    // Engagement (if available)\n    stats: {\n      views: post.views || 0,\n      likes: post.likes || 0,\n      comments: post.commentsCount || 0\n    },\n    \n    // Additional fields\n    isPremium: post.isPremium || false,\n    isPublished: post.status === 'published' || true,\n    readingTime: post.readingTime || null\n  };\n});\n\nreturn processedPosts;"
       },
-      "id": "split-posts",
-      "name": "Split Posts Array",
-      "type": "n8n-nodes-base.itemLists",
-      "typeVersion": 3,
+      "id": "process-posts",
+      "name": "Process Posts Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [650, 300]
     },
     {
       "parameters": {
-        "method": "GET",
-        "url": "=https://paragraph.com/api/posts/{{ $json.id }}",
+        "resource": "file",
+        "operation": "write",
+        "fileName": "=livepeer_posts_{{ $now.format('yyyy-MM-dd_HHmmss') }}.json",
+        "filePath": "=/tmp/",
         "options": {}
       },
-      "id": "http-request-full",
-      "name": "Get Full Post Content",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
-      "position": [850, 300]
-    },
-    {
-      "parameters": {
-        "mode": "combine",
-        "combineBy": "combineAll",
-        "options": {}
-      },
-      "id": "combine-results",
-      "name": "Combine All Posts",
-      "type": "n8n-nodes-base.itemLists",
-      "typeVersion": 3,
-      "position": [1050, 300]
-    },
-    {
-      "parameters": {
-        "jsCode": "// Process and clean up the blog post data\nconst posts = items.map(item => {\n  const post = item.json;\n  \n  return {\n    id: post.id,\n    title: post.title,\n    slug: post.slug,\n    url: `https://paragraph.com/@livepeer-2/${post.slug}`,\n    publishedAt: post.publishedAt,\n    updatedAt: post.updatedAt,\n    summary: post.summary || post.subtitle || '',\n    \n    // Content fields\n    contentMarkdown: post.markdown || '',\n    contentHtml: post.html || '',\n    contentText: post.text || '',\n    \n    // Metadata\n    author: post.author || 'Livepeer',\n    tags: post.tags || [],\n    \n    // Engagement metrics\n    views: post.views || 0,\n    likes: post.likes || 0,\n    comments: post.commentsCount || 0,\n    \n    // Media\n    coverImage: post.coverImageUrl || post.featuredImage || '',\n    images: post.images || [],\n    \n    // Additional info\n    readingTime: post.readingTime || null,\n    wordCount: post.wordCount || null,\n    isPremium: post.isPremium || false,\n    isPublished: post.status === 'published'\n  };\n});\n\nreturn posts;"
-      },
-      "id": "code-process",
-      "name": "Process & Clean Data",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [1250, 300]
-    },
-    {
-      "parameters": {
-        "operation": "toFile",
-        "fileFormat": "json",
-        "options": {
-          "fileName": "=livepeer_latest_posts_{{ $now.format('yyyy-MM-dd_HH-mm-ss') }}.json"
-        }
-      },
-      "id": "save-to-file",
-      "name": "Save as JSON File",
-      "type": "n8n-nodes-base.conversionNodes",
+      "id": "write-file",
+      "name": "Write to File",
+      "type": "n8n-nodes-base.filesystem",
       "typeVersion": 1,
-      "position": [1450, 200]
+      "position": [850, 200],
+      "disabled": true
     },
     {
       "parameters": {
         "values": {
           "string": [
             {
-              "name": "webhook_url",
-              "value": "YOUR_WEBHOOK_URL_HERE"
+              "name": "output",
+              "value": "={{ JSON.stringify($json, null, 2) }}"
             }
           ]
         },
         "options": {}
       },
-      "id": "config-node",
-      "name": "Configuration",
+      "id": "format-output",
+      "name": "Format Output",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3,
-      "position": [250, 100],
-      "notesInFlow": true,
-      "notes": "Update with your webhook URL or API endpoint for sending the data"
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "={{ $node['Configuration'].json['webhook_url'] }}",
-        "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "posts",
-              "value": "={{ JSON.stringify($json) }}"
-            },
-            {
-              "name": "timestamp",
-              "value": "={{ $now.toISO() }}"
-            },
-            {
-              "name": "source",
-              "value": "livepeer-paragraph"
-            }
-          ]
-        },
-        "options": {
-          "batching": {
-            "batch": {
-              "batchSize": 4
-            }
-          }
-        }
-      },
-      "id": "webhook-send",
-      "name": "Send to Webhook (Optional)",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.1,
-      "position": [1450, 400],
-      "disabled": true
+      "position": [850, 300]
     }
   ],
   "connections": {
@@ -174,56 +106,23 @@
       "main": [
         [
           {
-            "node": "Split Posts Array",
+            "node": "Process Posts Data",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Split Posts Array": {
+    "Process Posts Data": {
       "main": [
         [
           {
-            "node": "Get Full Post Content",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Get Full Post Content": {
-      "main": [
-        [
-          {
-            "node": "Combine All Posts",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Combine All Posts": {
-      "main": [
-        [
-          {
-            "node": "Process & Clean Data",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Process & Clean Data": {
-      "main": [
-        [
-          {
-            "node": "Save as JSON File",
+            "node": "Format Output",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Send to Webhook (Optional)",
+            "node": "Write to File",
             "type": "main",
             "index": 0
           }
