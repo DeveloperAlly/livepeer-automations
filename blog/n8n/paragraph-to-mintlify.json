@@ -1,0 +1,96 @@
+{
+  "name": "Paragraph → Mintlify MDX Sync",
+  "nodes": [
+    {
+      "id": "FetchParagraph",
+      "name": "Fetch Latest Paragraph Posts",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [340, 300],
+      "parameters": {
+        "url": "https://paragraph.xyz/api/publication/livepeer-2/posts",
+        "method": "GET",
+        "responseFormat": "json"
+      }
+    },
+    {
+      "id": "SelectFive",
+      "name": "Select 5 Posts",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [600, 300],
+      "parameters": {
+        "functionCode": "const posts = items[0].json.data.slice(0, 5);\nreturn posts.map(p => ({ json: p }));"
+      }
+    },
+    {
+      "id": "FormatMDX",
+      "name": "Build Mintlify MDX",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [860, 300],
+      "parameters": {
+        "functionCode": "function escapeMDX(str) {\n  return str\n    .replace(/</g, '&lt;')\n    .replace(/>/g, '&gt;');\n}\n\nlet mdx = `# Latest Posts from Livepeer Paragraph\\n\\n`;\n\nfor (const item of items) {\n  const t = item.json;\n  const title = escapeMDX(t.title || \"Untitled\");\n  const slug = t.slug;\n  const image = t.image || t.coverImage || null;\n  const content = escapeMDX(t.text || t.markdown || t.body || \"\");\n\n  mdx += `## ${title}\\n\\n`;\n\n  if (image) {\n    mdx += `![${title}](${image})\\n\\n`;\n  }\n\n  mdx += `${content}\\n\\n`;\n  mdx += `[Read original →](https://paragraph.xyz/@livepeer-2/${slug})\\n\\n---\\n\\n`;\n}\n\nreturn [{ json: { mdx } }];"
+      }
+    },
+    {
+      "id": "CommitFileToGitHub",
+      "name": "Push MDX to GitHub",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1130, 300],
+      "parameters": {
+        "method": "PUT",
+        "url": "https://api.github.com/repos/ORG/REPO/contents/content/paragraph/latest.mdx",
+        "authentication": "headerAuth",
+        "sendBody": true,
+        "jsonParameters": true,
+        "headerParametersJson": "{\"Accept\":\"application/vnd.github+json\"}",
+        "bodyParametersJson": "={\n  \"message\": \"Update Paragraph → Mintlify MDX (automated)\",\n  \"content\": Buffer.from($json[\"mdx\"]).toString(\"base64\")\n}"
+      },
+      "credentials": {
+        "headerAuth": {
+          "token": "YOUR_GITHUB_PAT"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "FetchParagraph": {
+      "main": [
+        [
+          {
+            "node": "SelectFive",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SelectFive": {
+      "main": [
+        [
+          {
+            "node": "FormatMDX",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FormatMDX": {
+      "main": [
+        [
+          {
+            "node": "CommitFileToGitHub",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {},
+  "staticData": null,
+  "pinData": {}
+}
