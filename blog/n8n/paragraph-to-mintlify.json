@@ -1,108 +1,234 @@
 {
-  "name": "Paragraph → Mintlify Latest Posts (Top 5)",
+  "name": "Fetch Latest 4 Livepeer Paragraph Posts",
   "nodes": [
     {
-      "id": "Manual",
+      "parameters": {},
+      "id": "trigger-node",
       "name": "Manual Trigger",
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
-      "position": [300, 300]
+      "position": [250, 300]
     },
     {
-      "id": "ListPosts",
-      "name": "List Posts",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 3,
-      "position": [600, 300],
       "parameters": {
-        "url": "https://api.paragraph.xyz/v1/posts",
         "method": "GET",
-        "queryParameters": [
-          { "name": "publicationId", "value": "={{$env.PARAGRAPH_PUBLICATION_ID}}" },
-          { "name": "limit", "value": "5" }
-        ],
-        "headers": {
-          "x-publication-api-key": "={{$env.PARAGRAPH_API_KEY}}"
+        "url": "https://paragraph.com/api/publications/iPSfmIGHQ4xSr3vesziM/posts",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "limit",
+              "value": "4"
+            },
+            {
+              "name": "status",
+              "value": "published"
+            },
+            {
+              "name": "orderBy",
+              "value": "publishedAt"
+            },
+            {
+              "name": "orderDirection",
+              "value": "desc"
+            }
+          ]
         },
-        "responseFormat": "json"
-      }
-    },
-    {
-      "id": "ExtractIds",
-      "name": "Extract Post IDs",
-      "type": "n8n-nodes-base.function",
-      "typeVersion": 1,
-      "position": [900, 300],
-      "parameters": {
-        "functionCode": "const posts = items[0].json.data;\nreturn posts.map(p => ({ json: { id: p.id, title: p.title, slug: p.slug }}));"
-      }
-    },
-    {
-      "id": "FetchFullPost",
-      "name": "Fetch Full Post",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 3,
-      "position": [1200, 300],
-      "parameters": {
-        "url": "=https://api.paragraph.xyz/v1/posts/{{$json.id}}",
-        "method": "GET",
-        "headers": {
-          "x-publication-api-key": "={{$env.PARAGRAPH_API_KEY}}"
-        },
-        "responseFormat": "json"
-      }
-    },
-    {
-      "id": "SanitizeHTML",
-      "name": "HTML → MDX Sanitizer",
-      "type": "n8n-nodes-base.function",
-      "typeVersion": 1,
-      "position": [1500, 300],
-      "parameters": {
-        "functionCode": "// Convert Paragraph HTML to valid Mintlify MDX\nfunction clean(html) {\n  return html\n    .replace(/<figure[^>]*>/g, '')\n    .replace(/<\\/figure>/g, '')\n    .replace(/<figcaption[^>]*>[\\s\\S]*?<\\/figcaption>/g, '')\n    .replace(/<iframe[^>]*src=\"([^\"]+)\"[^>]*><\\/iframe>/g, '<Video url=\"$1\" />')\n    .replace(/<img[^>]*src=\"([^\"]+)\"[^>]*>/g, '<img src=\"$1\" />')\n    .replace(/data-type=\"youtube\"[\\s\\S]*?videoId=\"(.*?)\"[\\s\\S]*?<\\/div>/g, '<YouTube videoId=\"$1\" />')\n    .replace(/class=\"[^\"]*\"/g, '')\n    .replace(/ style=\"[^\"]*\"/g, '')\n    .trim();\n}\n\nreturn items.map(item => {\n  const p = item.json.data;\n  return {\n    json: {\n      title: p.title,\n      slug: p.slug,\n      html: clean(p.content.html),\n      date: p.publishedAt\n    }\n  };\n});"
-      }
-    },
-    {
-      "id": "BuildMDX",
-      "name": "Build Combined MDX",
-      "type": "n8n-nodes-base.function",
-      "typeVersion": 1,
-      "position": [1800, 300],
-      "parameters": {
-        "functionCode": "let mdx = `---\\ntitle: Latest Livepeer Articles\\n---\\n\\n`;\n\nitems.forEach(post => {\n  mdx += `# ${post.json.title}\\n\\n`;\n  mdx += post.json.html + \"\\n\\n---\\n\\n\";\n});\n\nreturn [{ json: { mdx }}];"
-      }
-    },
-    {
-      "id": "WriteGitHub",
-      "name": "Write MDX to GitHub",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 3,
-      "position": [2100, 300],
-      "parameters": {
-        "url": "=https://api.github.com/repos/Developerally/livepeer-docs/contents/docs/n8n/blog/latest.mdx",
-        "method": "PUT",
-        "authentication": "predefinedCredentialType",
-        "genericAuthType": "githubApi",
-        "bodyParameters": [
-          { "name": "message", "value": "Update latest blog posts (automated via n8n)" },
-          { "name": "content", "value": "={{Buffer.from($json.mdx).toString('base64')}}" },
-          { "name": "branch", "value": "main" }
-        ],
-        "responseFormat": "json"
+        "options": {}
       },
-      "credentials": {
-        "githubApi": {
-          "id": "YOUR_GITHUB_CREDENTIAL_ID"
+      "id": "http-request-list",
+      "name": "List Latest 4 Posts",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "data",
+        "options": {}
+      },
+      "id": "split-posts",
+      "name": "Split Posts Array",
+      "type": "n8n-nodes-base.itemLists",
+      "typeVersion": 3,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "=https://paragraph.com/api/posts/{{ $json.id }}",
+        "options": {}
+      },
+      "id": "http-request-full",
+      "name": "Get Full Post Content",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineAll",
+        "options": {}
+      },
+      "id": "combine-results",
+      "name": "Combine All Posts",
+      "type": "n8n-nodes-base.itemLists",
+      "typeVersion": 3,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Process and clean up the blog post data\nconst posts = items.map(item => {\n  const post = item.json;\n  \n  return {\n    id: post.id,\n    title: post.title,\n    slug: post.slug,\n    url: `https://paragraph.com/@livepeer-2/${post.slug}`,\n    publishedAt: post.publishedAt,\n    updatedAt: post.updatedAt,\n    summary: post.summary || post.subtitle || '',\n    \n    // Content fields\n    contentMarkdown: post.markdown || '',\n    contentHtml: post.html || '',\n    contentText: post.text || '',\n    \n    // Metadata\n    author: post.author || 'Livepeer',\n    tags: post.tags || [],\n    \n    // Engagement metrics\n    views: post.views || 0,\n    likes: post.likes || 0,\n    comments: post.commentsCount || 0,\n    \n    // Media\n    coverImage: post.coverImageUrl || post.featuredImage || '',\n    images: post.images || [],\n    \n    // Additional info\n    readingTime: post.readingTime || null,\n    wordCount: post.wordCount || null,\n    isPremium: post.isPremium || false,\n    isPublished: post.status === 'published'\n  };\n});\n\nreturn posts;"
+      },
+      "id": "code-process",
+      "name": "Process & Clean Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {
+        "operation": "toFile",
+        "fileFormat": "json",
+        "options": {
+          "fileName": "=livepeer_latest_posts_{{ $now.format('yyyy-MM-dd_HH-mm-ss') }}.json"
         }
-      }
+      },
+      "id": "save-to-file",
+      "name": "Save as JSON File",
+      "type": "n8n-nodes-base.conversionNodes",
+      "typeVersion": 1,
+      "position": [1450, 200]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "webhook_url",
+              "value": "YOUR_WEBHOOK_URL_HERE"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "config-node",
+      "name": "Configuration",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [250, 100],
+      "notesInFlow": true,
+      "notes": "Update with your webhook URL or API endpoint for sending the data"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $node['Configuration'].json['webhook_url'] }}",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "posts",
+              "value": "={{ JSON.stringify($json) }}"
+            },
+            {
+              "name": "timestamp",
+              "value": "={{ $now.toISO() }}"
+            },
+            {
+              "name": "source",
+              "value": "livepeer-paragraph"
+            }
+          ]
+        },
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 4
+            }
+          }
+        }
+      },
+      "id": "webhook-send",
+      "name": "Send to Webhook (Optional)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1450, 400],
+      "disabled": true
     }
   ],
   "connections": {
-    "Manual Trigger": { "main": [ [ { "node": "List Posts", "type": "main" } ] ] },
-    "List Posts": { "main": [ [ { "node": "Extract Post IDs", "type": "main" } ] ] },
-    "Extract Post IDs": { "main": [ [ { "node": "Fetch Full Post", "type": "main" } ] ] },
-    "Fetch Full Post": { "main": [ [ { "node": "HTML → MDX Sanitizer", "type": "main" } ] ] },
-    "HTML → MDX Sanitizer": { "main": [ [ { "node": "Build Combined MDX", "type": "main" } ] ] },
-    "Build Combined MDX": { "main": [ [ { "node": "Write MDX to GitHub", "type": "main" } ] ] }
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "List Latest 4 Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List Latest 4 Posts": {
+      "main": [
+        [
+          {
+            "node": "Split Posts Array",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Posts Array": {
+      "main": [
+        [
+          {
+            "node": "Get Full Post Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Full Post Content": {
+      "main": [
+        [
+          {
+            "node": "Combine All Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Combine All Posts": {
+      "main": [
+        [
+          {
+            "node": "Process & Clean Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process & Clean Data": {
+      "main": [
+        [
+          {
+            "node": "Save as JSON File",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send to Webhook (Optional)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   }
 }
