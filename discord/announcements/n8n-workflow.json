@@ -2,6 +2,11 @@
   "name": "Livepeer Forum → MDX Auto-Update",
   "nodes": [
     {
+      "id": 1,
+      "name": "Daily Cron",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [200, 300],
       "parameters": {
         "triggerTimes": [
           {
@@ -9,73 +14,127 @@
             "minute": 0
           }
         ]
-      },
-      "id": "1",
-      "name": "Daily Cron",
-      "type": "n8n-nodes-base.cron",
-      "typeVersion": 1
+      }
     },
     {
-      "parameters": {
-        "url": "https://forum.livepeer.org/latest.json",
-        "responseFormat": "json"
-      },
-      "id": "2",
+      "id": 2,
       "name": "Fetch Latest Topics",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 1,
-      "position": []
+      "position": [500, 300],
+      "parameters": {
+        "method": "GET",
+        "url": "https://forum.livepeer.org/latest.json",
+        "responseFormat": "json"
+      }
     },
     {
-      "parameters": {
-        "functionCode": "const topics = items[0].json.topic_list.topics.slice(0, 5);\n\nreturn topics.map(t => ({\n  json: {\n    title: t.title,\n    url: `https://forum.livepeer.org/t/${t.id}`,\n    slug: t.slug,\n    createdAt: t.created_at\n  }\n}));"
-      },
-      "id": "3",
+      "id": 3,
       "name": "Extract 5 Topics",
       "type": "n8n-nodes-base.function",
-      "typeVersion": 1
+      "typeVersion": 1,
+      "position": [800, 300],
+      "parameters": {
+        "functionCode": "const topics = items[0].json.topic_list.topics.slice(0, 5);\n\nreturn topics.map(t => ({\n  json: {\n    title: t.title,\n    url: `https://forum.livepeer.org/t/${t.id}`,\n    slug: t.slug,\n    createdAt: t.created_at\n  }\n}));"
+      }
     },
     {
-      "parameters": {
-        "functionCode": "let mdx = `## Latest Forum Topics\\n\\n`;\n\nitems.forEach(t => {\n  mdx += `### [${t.json.title}](${t.json.url})\\n`;\n  mdx += `Published: ${t.json.createdAt}\\n\\n`;\n});\n\nreturn [{ json: { fileContent: mdx }}];"
-      },
-      "id": "4",
+      "id": 4,
       "name": "Build MDX",
       "type": "n8n-nodes-base.function",
-      "typeVersion": 1
+      "typeVersion": 1,
+      "position": [1100, 300],
+      "parameters": {
+        "functionCode": "let mdx = `## Latest Forum Topics\\n\\n`;\n\nitems.forEach(t => {\n  mdx += `### [${t.json.title}](${t.json.url})\\n`;\n  mdx += `Published: ${t.json.createdAt}\\n\\n`;\n});\n\nreturn [{ json: { fileContent: mdx }}];"
+      }
     },
     {
-      "parameters": {
-        "functionCode": "return [{\n  json: {\n    contentB64: Buffer.from(items[0].json.fileContent).toString('base64')\n  }\n}];"
-      },
-      "id": "5",
+      "id": 5,
       "name": "Base64 Encode",
       "type": "n8n-nodes-base.function",
-      "typeVersion": 1
+      "typeVersion": 1,
+      "position": [1400, 300],
+      "parameters": {
+        "functionCode": "return [{\n  json: {\n    contentB64: Buffer.from(items[0].json.fileContent).toString('base64'),\n    raw: items[0].json.fileContent\n  }\n}];"
+      }
     },
     {
-      "parameters": {
-        "method": "PUT",
-        "url": "https://api.github.com/repos/developerally/livepeer-docs/contents/docs/latest-forum.mdx",
-        "responseFormat": "json",
-        "bodyParametersJson": "={\n  \"message\": \"Auto-update latest forum topics\",\n  \"content\": $json[\"contentB64\"]\n}"
-      },
-      "id": "6",
-      "name": "GitHub Commit",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 1,
+      "id": 6,
+      "name": "GitHub Create/Update File",
+      "type": "n8n-nodes-base.github",
+      "typeVersion": 2,
+      "position": [1700, 300],
       "credentials": {
         "githubApi": {
           "name": "GitHub Repo Token"
         }
+      },
+      "parameters": {
+        "resource": "file",
+        "operation": "createOrUpdate",
+        "filePath": "docs/latest-forum.mdx",
+        "owner": "developerally",
+        "repository": "livepeer-docs",
+        "fileContent": "={{$json[\"raw\"]}}",
+        "commitMessage": "Auto-update latest forum topics"
       }
     }
   ],
   "connections": {
-    "Daily Cron": { "main": [[ { "node": "Fetch Latest Topics", "type": "main", "index": 0 } ]] },
-    "Fetch Latest Topics": { "main": [[ { "node": "Extract 5 Topics", "type": "main", "index": 0 } ]] },
-    "Extract 5 Topics": { "main": [[ { "node": "Build MDX", "type": "main", "index": 0 } ]] },
-    "Build MDX": { "main": [[ { "node": "Base64 Encode", "type": "main", "index": 0 } ]] },
-    "Base64 Encode": { "main": [[ { "node": "GitHub Commit", "type": "main", "index": 0 } ]] }
+    "Daily Cron": {
+      "main": [
+        [
+          {
+            "node": "Fetch Latest Topics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Latest Topics": {
+      "main": [
+        [
+          {
+            "node": "Extract 5 Topics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract 5 Topics": {
+      "main": [
+        [
+          {
+            "node": "Build MDX",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build MDX": {
+      "main": [
+        [
+          {
+            "node": "Base64 Encode",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Base64 Encode": {
+      "main": [
+        [
+          {
+            "node": "GitHub Create/Update File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   }
 }
